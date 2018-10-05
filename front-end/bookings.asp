@@ -1,0 +1,552 @@
+<%
+const QuinchoBookingResourceId = 100
+const HouseBookingResourceId = 200
+const tennisCourt1BookingResourceId=10
+const tennisCourt2BookingResourceId=20
+function renderBookings
+  if not getUsrData then exit function
+  if not servicesAllowed then exit function
+  dim i
+  %>
+  <div id="dynPanelBg"></div>
+  <div id="bookingsPanel">
+    <div id="bookingsTitle">MIS RESERVAS</div>
+    <div id="bookingsListing">
+      <% renderBookingsListing %>
+    </div>
+  </div>
+  <div id="bookingsFormPanel">
+    <div id="bookingsFormTitle">HOUSE / QUINCHO</div>
+    <table id="bookingsformControls">
+      <tr>
+        <td valign="middle" width="125" align="right">Fecha del evento</td>
+        <td valign="middle" width="100"><input type="text" maxlength="10" value="" id="bookingsFormDate" readonly="readonly"></td>
+        <td valign="middle" width="50"><img src="back-end/forms/resource/btnDatePicker.png" class="anchor" title="Ver calendario"
+          onclick="datePickerToggle(document.getElementById('bookingsFormDate')); event.cancelBubble=true;"></td>
+        <td valign="middle" width="120" rowspan="3">
+          <div class="bookingsTypeButton anchor" name="recurso"  onclick="bookingsSendRequest()">Solicitar reserva</div>
+        </td>
+      </tr>
+      <tr>
+        <td valign="middle" width="125" align="right">Espacio</td>
+        <td valign="middle" width="100" colspan="2">
+          <select id="bookingsFormPlace"  onchange="bookingResourceSelectedHOME()" >
+            <option value="0" selected="selected">HOUSE</option>
+            <option value="1" >QUINCHO</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td valign="middle" width="125" align="right">Turno</td>
+        <td valign="middle" width="100" colspan="2">
+          <select id="bookingsFormTurn">
+            <%
+            dbGetData("SELECT ID, NOMBRE FROM RESERVAS_TURNOS_ESPECIALES WHERE ID_RECURSO=" & HouseBookingResourceId & " ORDER BY ID")
+            i = 0
+            do while not rs.EOF
+              if i = 0 then
+                %>
+                <option value="<%= rs("ID") %>" selected="selected"><%= rs("NOMBRE") %></option>
+                <%
+              else
+                %>
+                <option value="<%= rs("ID") %>"><%= rs("NOMBRE") %></option>
+                <%
+              end if
+              i = i + 1
+              rs.moveNext
+            loop
+            dbReleaseData
+          %>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td align="left" colspan="4" id="bookingsformNote">
+        HOUSE: <br>Lun a Dom de 12:00 a 19:00 hs
+<br>Vie, Sab y Visp. Feriado de 20:00 a 03:00 hs. 
+<br>QUINCHO: <br>Lun a Vie de 11:00 a 15:00 hs MAX 20 invitados 
+        </td>
+      </tr> 
+    </table>
+  </div>
+  <div id="bookingsStatusPanel">
+    <div id="bookingsStatusTitle">ESTADO DE LAS RESERVAS
+      <div id="bookingsStatusControls">
+        <select id="bookingsResourceSelector" onchange="bookingResourceSelected(this)">
+          <%
+          dbGetData("SELECT ID, NOMBRE FROM RESERVAS_RECURSOS ORDER BY NOMBRE")
+          i = null
+          do while not rs.EOF
+            if isNull(i) then
+              i = rs("ID")
+              %>
+              <option value="<%= i %>" selected="selected"><%= rs("NOMBRE") %></option>
+              <%
+            else
+              %>
+              <option value="<%= rs("ID") %>"><%= rs("NOMBRE") %></option>
+              <%
+            end if
+            rs.moveNext
+          loop
+          dbReleaseData
+        %>
+        </select>
+      </div>
+    </div>
+    <div id="bookingsStatus">
+      <% renderBookingsStatus(i) %>
+    </div>
+  </div>
+	<%
+	logActivity "Reservas", ""
+end function
+
+function renderBookingsListing
+  if not getUsrData then exit function
+  %>
+  <table cellpadding="4" cellspacing="0" width="100%">
+    <%
+    if dbGetData("SELECT ID, FECHA, ID_RECURSO, dbo.NOMBRE_RECURSO_RESERVA(ID_RECURSO) AS RECURSO, " & _
+        "dbo.NOMBRE_TURNO(INICIO, DURACION) AS TURNO, OBSERVACIONES, " & _
+        "CAST(CASE WHEN (id_recurso<100 AND DATEDIFF(MINUTE, GETDATE(), dbo.FECHA_INICIO_TURNO(FECHA, INICIO)) >= 0) OR ( DATEDIFF(D, GETDATE(),FECHA) >30) THEN 1 ELSE 0 END AS BIT) AS CANCELABLE " & _
+        "FROM RESERVAS WHERE ID_VECINO = " & usrId & " AND FECHA >= (SELECT TOP 1 FECHA FROM HOY) ORDER BY FECHA, RECURSO, INICIO DESC") then
+      dim rowClass
+      dim oddRow: oddRow = true
+      dim cancelBtnVisibility
+      do while not rs.EOF
+        if rs("CANCELABLE") then
+          cancelBtnVisibility = "visible"
+        else
+          cancelBtnVisibility = "hidden"
+        end if
+        if oddRow then rowClass = "oddRow" else rowClass = ""
+        %>
+        <tr class="<%= rowClass %>">
+          <td width="75" align="center"><%= rs("FECHA") %></td>
+          <td width="100" align="center"><%= rs("TURNO") %></td>
+          <td align="left"><%= rs("RECURSO") %>
+            <% if rs("ID_RECURSO") >99 and len(rs("OBSERVACIONES")) > 0 then %>
+              <br><span style="font-size: 12px"><%= rs("OBSERVACIONES") %></span>
+            <% end if %>
+              <div class="cancelBookingsBtn anchor" style="visibility: <%= cancelBtnVisibility %>" 
+                onclick="bookingsCancel(<%= rs("ID") %>,<%= rs("ID_RECURSO") %>)">Cancelar</div>
+            
+          </td>
+        </tr>
+        <%
+        oddRow = not oddRow
+        rs.moveNext
+      loop
+    else
+      %>
+      <tr><td colspan="4" align="left" height="25">(No has efectuado ninguna reserva.)</td></tr>
+      <%
+    end if
+    dbReleaseData
+    %>
+  </table>
+  <%
+end function
+
+function renderBookingsStatus(resourceId)
+  if  resourceId=HouseBookingResourceId then
+    renderClubHouseBookingsStatus(resourceId)
+  else
+    renderTennisBookingsStatus(resourceId)
+  end if
+end function
+
+function renderTennisBookingsStatus(resourceId)
+  if not getUsrData then exit function
+  %>
+  <table cellpadding="0" cellspacing="0">
+    <thead>
+    <tr>
+      <td width="52">&nbsp;</td>
+      <%
+      dbGetData("SELECT * FROM dbo.LISTA_FECHAS()")
+      do while not rs.EOF
+        %>
+        <th width="52"><%= weekdayname(weekday(rs("FECHA"))) %>&nbsp;<%= zeroPad(day(rs("FECHA")), 2) %>/<%= zeroPad(month(rs("FECHA")), 2) %></td>
+        <%
+        rs.moveNext
+      loop
+      dbReleaseData
+      %>
+    </tr>
+    </thead>
+    <tbody id="bookingRows">
+    <%
+    dbGetData("SELECT E.FECHA, dbo.HOUR_TO_STR(dbo.MINUTOS_A_HORA(E.INICIO)) AS TURNO, E.INICIO, T.DURACION, E.ID_VECINO, E.ID_VECINO_2, E.ESTADO, " & _
+      "CAST(CASE WHEN dbo.FECHA_FIN_TURNO(E.FECHA, E.INICIO, T.DURACION) < GETDATE() THEN 1 ELSE 0 END AS BIT) AS FINALIZADO, " & _
+      "CAST(CASE WHEN GETDATE() < dbo.FECHA_INICIO_TURNO(FECHA, INICIO) AND UPPER(E.ESTADO)='DISPONIBLE' THEN 1 ELSE 0 END AS BIT) AS RESERVABLE, " & _
+      "dbo.ID_TIPO_RESERVA(dbo.ID_RESERVA_TURNO_RESERVA(" & resourceId & ", E.FECHA, E.INICIO, E.DURACION)) AS TIPO_RESERVA, " & _
+      "CAST(CAST(T.DURACION AS FLOAT) / 60 AS NVARCHAR) + ' hs (' + T.NOMBRE + ')' AS TIPO, T.NOMBRE AS ABR, T.DURACION, " & _
+      "dbo.ESTADO_TURNO_RESERVA(" & resourceId & ", E.FECHA, E.INICIO, T.DURACION) AS ESTADO_TURNO, " & _
+      "dbo.TURNO_RESERVA_VALIDO(" & resourceId & ", E.INICIO, T.DURACION) AS VALIDO, T.REQUIERE_VECINO_2, " & _
+      "dbo.NOMBRE_TIPO_RESERVA(" & resourceId & ", E.ID_TIPO) AS TIPO_RESERVA_HECHA, T.ID AS ID_TIPO_RESERVA_DISPONIBLE, " & _
+      "dbo.UNIDAD_VECINO(E.ID_VECINO) AS UNIDAD, dbo.UNIDAD_VECINO(E.ID_VECINO) AS UNIDAD_PRIMARIA, dbo.UNIDAD_VECINO(E.ID_VECINO_2) AS UNIDAD_EXTRA " & _
+      "FROM dbo.ESTADOS_RESERVAS(" & resourceId & ") E " & _
+      "JOIN RESERVAS_TIPOS T ON T.ID_RECURSO = " & resourceId & " AND T.ID>1 " & _
+      "GROUP BY E.INICIO, E.FECHA, T.ID, T.DURACION, T.NOMBRE, E.ID_VECINO, E.ID_VECINO_2, E.ESTADO, E.DURACION, T.REQUIERE_VECINO_2, E.ID_TIPO " & _
+      "ORDER BY E.INICIO, E.FECHA, T.ID")
+    dim rowClass
+    dim oddRow: oddRow = false
+    dim colTurn: colTurn = -1
+    dim d: d = dateSerial(2000, 1, 1)
+    dim emptyCell: emptyCell = true
+    do while not rs.EOF
+      if colTurn <> rs("INICIO") then 
+        if oddRow then rowClass = "oddRow" else rowClass = ""
+        oddRow = not oddRow
+        %><tr class="<%= rowClass %>"><%
+        colTurn = rs("INICIO")
+        %><td width="58" class="bookingStatusTurn"><%= rs("TURNO") %></td><%
+      end if
+      if rs("FINALIZADO") then
+        if d <> rs("FECHA") then
+          d = rs("FECHA")
+          %><td width="190"><%
+        end if
+      else
+        if rs("RESERVABLE") then
+          if d <> rs("FECHA") then
+            d = rs("FECHA")
+            %><td width="190" class="bookingsButtons turnAvailable" align="center"><%
+          end if
+          if uCase(rs("ESTADO_TURNO")) = "DISPONIBLE" and rs("VALIDO") then
+            %>
+              <span class="bookingsTypeButton anchor" title="Reservar <%= rs("TIPO") %>"
+                onclick="bookingsTake(this, <%= resourceId %>, '<%= day(d) %>/<%= month(d) %>/<%= year(d) %>', <%= rs("INICIO") %>, <%= rs("ID_TIPO_RESERVA_DISPONIBLE") %>, <%= abs(cInt(rs("REQUIERE_VECINO_2"))) %>)"><%= rs("ABR") %></span>
+              <%
+            emptyCell = false
+          end if
+        elseif uCase(rs("ESTADO")) = "VACANTE" then
+          if d <> rs("FECHA") then
+            d = rs("FECHA")
+            %><td width="190" title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotUsed" align="center"><%
+          end if
+        elseif rs("ID_VECINO") = usrId then
+          if d <> rs("FECHA") then
+            d = rs("FECHA")
+            if len(rs("UNIDAD_EXTRA")) > 0 then
+              %><td width="190" class="bookingsButtons turnOwnReservation" align="center"><%= rs("TIPO_RESERVA_HECHA") %> con lote <%= rs("UNIDAD_EXTRA") %><%
+            else
+              %><td width="190" class="bookingsButtons turnOwnReservation" align="center"><%= rs("TIPO_RESERVA_HECHA") %> (reserva propia)<%
+            end if
+          end if
+        elseif rs("ID_VECINO_2") = usrId then
+          if d <> rs("FECHA") then
+            d = rs("FECHA")
+            %><td width="190" class="bookingsButtons turnOwnReservation" align="center"><%= rs("TIPO_RESERVA_HECHA") %> con lote <%= rs("UNIDAD_PRIMARIA") %><%
+          end if
+        else
+          if d <> rs("FECHA") then
+            d = rs("FECHA")
+            if len(rs("UNIDAD_EXTRA")) > 0 then
+              %><td width="190" title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotAvailable" align="center"><%= rs("TIPO_RESERVA_HECHA") %>: <%= rs("UNIDAD") %> y <%= rs("UNIDAD_EXTRA") %><%
+            else
+              %><td width="190" title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotAvailable" align="center"><%= rs("TIPO_RESERVA_HECHA") %>: <%= rs("UNIDAD") %><%
+            end if
+          end if
+        end if
+      end if
+      rs.moveNext
+      if rs.EOF then
+        if emptyCell then
+          %>&nbsp;<%
+        end if
+        %></td></tr><%
+      else
+        if d <> rs("FECHA") then
+          if emptyCell then
+            %>&nbsp;<%
+          end if
+          emptyCell = true
+          %></td><%
+        end if
+        if colTurn <> rs("INICIO") then 
+          %></tr><%
+        end if
+      end if
+    loop
+    dbReleaseData
+    %>
+    </tbody>
+  </table>
+  <%
+end function
+
+
+function renderClubHouseBookingsStatus(resourceId)
+  if not getUsrData then exit function
+  %>
+  <table cellpadding="4" cellspacing="0" width="100%">
+    <tr>
+      <th width="75" align="center">FECHA</th>
+      <th width="135" align="center">TURNO</th>
+      <th width="210" align="center">&nbsp;</th>
+    </tr>
+    <%
+    if dbGetData("SELECT FECHA, dbo.NOMBRE_TURNO(INICIO, DURACION) AS TURNO " & _
+        "FROM dbo.ESTADOS_RESERVAS(" & resourceId & ") ORDER BY INICIO, FECHA") then
+      dim rowClass
+      dim oddRow: oddRow = false
+      do while not rs.EOF
+        if oddRow then rowClass = "oddRow" else rowClass = ""
+        oddRow = not oddRow
+        %>
+        <tr class="<%= rowClass %>">
+          <td width="75" align="center"><%= rs("FECHA") %></td>
+          <td width="135" align="center"><%= rs("TURNO") %></td>
+          <td width="210" align="center">&nbsp;</td>
+        </tr>
+        <%
+        rs.moveNext
+      loop
+    else
+      %>
+      <tr><td colspan="3" width="390" align="center">(No se han realizado reservas)</td></tr>
+      <%
+    end if
+    dbReleaseData
+    %>
+  </table>
+  <%
+end function
+
+function bookingCancel(bookingId)
+  if not getUsrData then exit function
+  dbGetData("SELECT ID_RECURSO, FECHA, dbo.NOMBRE_RECURSO_RESERVA(ID_RECURSO) AS RECURSO, dbo.HOUR_TO_STR(INICIO) AS TURNO, " & _
+    "CAST(CASE WHEN DATEDIFF(MINUTE, GETDATE(), dbo.FECHA_INICIO_TURNO(FECHA, INICIO)) >= 120 THEN 1 ELSE 0 END AS BIT) AS OK " & _
+    "FROM RESERVAS WHERE ID=" & bookingId)
+  dim OK: OK = rs("OK")
+  dim resourceId: resourceId = rs("ID_RECURSO")
+  dim resource: resource = rs("RECURSO")
+  dim turn: turn = rs("TURNO")
+  dim bookingDate: bookingDate = rs("FECHA")
+  dbReleaseData
+  if  resourceId= HouseBookingResourceId  then
+    JSONAddOpFailed
+    JSONAddMessage "Para cancelar la reserva del "&resource&" deberá comunicarse con la Administración."
+    logActivity "Cancela reserva "&resource, "Denegada: debe comunicarse con Administración."
+  else
+    if OK then
+      dbExecute("DELETE FROM RESERVAS WHERE ID=" & bookingId & " AND ID_VECINO=" & usrId)
+      JSONAddOpOK
+      logActivity "Cancela reserva " & resource, bookingDate & "&nbsp;" & turn
+    else
+      JSONAddOpFailed
+      JSONAddMessage resource & ": el turno " & bookingDate & " " & turn & "\n\nYa no es posible cancelar la reserva porque la anticipación mínima es de 2 horas."
+      logActivity "Cancela reserva " & resource, bookingDate & " " & turn & ", denegada: anticipación insuficiente."
+    end if
+  end if
+  JSONSend
+end function
+
+function bookingsTake(resourceId, bookingDate, turnStart, turnType, extraNeighborUnit)
+  if not getUsrData then exit function
+  dbGetData("SELECT DURACION, REQUIERE_VECINO_2 FROM RESERVAS_TIPOS WHERE ID_RECURSO=" & resourceId & " AND ID=" & turnType)
+  dim turnDuration: turnDuration = rs(0)
+  dim extraNeighborRequired: extraNeighborRequired = rs(1)
+  dbReleaseData
+  dbGetData("SELECT dbo.NOMBRE_RECURSO_RESERVA(" & resourceId & ") AS RECURSO, dbo.NOMBRE_TURNO(" & turnStart & ", " & turnDuration & ") AS TURNO")
+  dim resource: resource = rs("RECURSO")
+  dim turn: turn = rs("TURNO")
+  dbReleaseData
+  dim OK
+  dim sqlDate: sqlDate = sqlValue(dbDatePrefix & bookingDate)
+  dbGetData("SELECT COUNT(*) FROM RESERVAS WHERE (" & _
+    resourceId & " IN (" & tennisCourt1BookingResourceId & ", " & tennisCourt2BookingResourceId & ") AND " & _
+    "ID_RECURSO IN (" & tennisCourt1BookingResourceId & ", " & tennisCourt2BookingResourceId & ") OR ID_RECURSO=" & resourceId & ") AND " & _
+    "FECHA = "& sqlDate &" AND (ID_VECINO=" & usrId & " OR ID_VECINO_2=" & usrId & ")")
+  OK = (rs(0) = 0)
+  dbReleaseData
+  if OK then
+    dbGetData("SELECT CAST(CASE WHEN GETDATE() <= dbo.FECHA_INICIO_TURNO(" & sqlDate & "," & turnStart & ") THEN 1 ELSE 0 END AS BIT)")
+    OK = rs(0)
+    dbReleaseData
+    if OK then
+      dbGetData("SELECT dbo.ESTADO_TURNO_RESERVA(" & resourceId & ", " & sqlDate & ", " & turnStart & ", " & turnDuration & ")")
+      dim status: status = rs(0)
+      dbReleaseData
+      if uCase(status) = "DISPONIBLE" then
+        dim extraNeighborId: extraNeighborId = null
+        if extraNeighborRequired then
+          if not isNull(extraNeighborUnit) then 
+            dbGetData("SELECT dbo.ID_VECINO_DE_UNIDAD(" & sqlValue(extraNeighborUnit) & ")")
+            extraNeighborId = rs(0)
+            dbReleaseData
+            OK = not isNull(extraNeighborId)
+            if OK then
+              OK = extraNeighborId <> usrId
+              if OK then
+                dbGetData("SELECT COUNT(*) FROM RESERVAS WHERE (" & _
+                  resourceId & " IN (" & tennisCourt1BookingResourceId & ", " & tennisCourt2BookingResourceId & ") AND " & _
+                  "ID_RECURSO IN (" & tennisCourt1BookingResourceId & ", " & tennisCourt2BookingResourceId & ") OR ID_RECURSO=" & resourceId & ") AND " & _
+                  "FECHA_FIN > GETDATE() AND (ID_VECINO=" & extraNeighborId & " OR ID_VECINO_2=" & extraNeighborId & ")")
+                OK = (rs(0) = 0)
+                dbReleaseData
+                if not OK then
+                  JSONAddOpFailed
+                  JSONAddMessage resource & ": ya existe una reserva a utilizar para el Número de Lote " & extraNeighborUnit & "."
+                  logActivity "Reserva compartida " & resource, bookingDate & " " & turn & ", denegada: el otro vecino ya tiene una reserva a utilizar "
+                end if
+              else
+                JSONAddOpFailed
+                JSONAddMessage resource & ": el Número de Lote para reserva compartida no puede ser el propio."
+                logActivity "Reserva compartida " & resource, bookingDate & " " & turn & ", denegada: Número de Lote no puede ser el propio"
+              end if
+            else
+              JSONAddOpFailed
+              JSONAddMessage resource & ": el Número de Lote para reserva compartida es incorrecto."
+              logActivity "Reserva compartida " & resource, bookingDate & " " & turn & ", denegada: Número de Lote incorrecto"
+            end if
+          else
+            JSONAddOpFailed
+            JSONAddMessage resource & ": falta el Número de Lote para reserva compartida."
+            logActivity "Reserva compartida " & resource, bookingDate & " " & turn & ", denegada: falta Número de Lote"
+          end if
+        else
+          
+        end if
+        if OK then
+          dbExecute("INSERT INTO RESERVAS (REC_ID_USUARIO, ID_RECURSO, ID_VECINO, FECHA, INICIO, DURACION, ID_TIPO, ID_VECINO_2) VALUES (" & _
+            "1, " & resourceId & ", " & usrId & ", " & sqlDate & ", " & turnStart & ", " & turnDuration & ", " & turnType & ", " & sqlValue(extraNeighborId) & ")")
+          if failed then
+            JSONAddOpFailed
+            JSONAddMessage "Error interno al grabar la reserva."
+            logActivity "Reserva " & resource, bookingDate & " " & turn & ", denegada: error interno"
+          else
+            JSONAddOpOK
+            logActivity "Reserva " & resource, bookingDate & "&nbsp;" & turn
+          end if
+        end if
+      else
+        JSONAddOpFailed
+        JSONAddMessage resource & ": el turno " & bookingDate & " " & turn & " no está disponible."
+        logActivity "Reserva " & resource, bookingDate & " " & turn & ", denegada: turno no disponible" 
+      end if
+    else
+      JSONAddOpFailed
+      JSONAddMessage resource & ": el turno " & bookingDate & " " & turn & " ya no se puede reservar porque ha pasado el horario de comienzo."
+      logActivity "Reserva " & resource, bookingDate & " " & turn & ", denegada: turno pasado o iniciado"
+    end if
+  else
+    JSONAddOpFailed
+    JSONAddMessage "Ya hay una reserva a utilizar.\nUna vez que la utilices podrás realizar otra."
+    logActivity "Reserva " & resource, bookingDate & " " & turn & ", denegada: ya tiene una reserva."
+  end if
+  JSONSend
+end function
+
+function bookingsSendRequest(bookingDate, placeId, turnId)
+  if not getUsrData then exit function
+  dim resourceId, resourceName
+  if placeId = 0 then
+      resourceId = HouseBookingResourceId
+      resourceName = "House"
+  else
+    resourceId = QuinchoBookingResourceId
+      resourceName = "Quincho"
+    
+  end if
+  
+    dim sqlDate: sqlDate = sqlValue(dbDatePrefix & bookingDate)
+    dbGetData("SELECT COUNT(*) FROM RESERVAS WHERE fecha=" & sqlDate)
+    dim dateOcupado: dateOcupado = rs(0)
+    if dateOcupado<1 then
+      if resourceId =100 then 
+        dbGetData("SELECT CAST(CASE WHEN DATEDIFF(D, (SELECT TOP 1 FECHA FROM HOY), " & sqlDate & ") >10 AND DATEDIFF(D, (SELECT TOP 1 FECHA FROM HOY), " & sqlDate & ") <=60 THEN 1 ELSE 0 END AS BIT)")
+      else
+        dbGetData("SELECT CAST(CASE WHEN DATEDIFF(D, (SELECT TOP 1 FECHA FROM HOY), " & sqlDate & ") >10 AND DATEDIFF(D, (SELECT TOP 1 FECHA FROM HOY), " & sqlDate & ") <=60  THEN 1 ELSE 0 END AS BIT)")
+      end if
+
+
+      dim dateOK: dateOK = rs(0)
+      dbReleaseData
+      if dateOK then
+        dim turnStart, turnDuration
+
+        dim consulta: consulta ="SELECT INICIO, DURACION FROM RESERVAS_TURNOS_ESPECIALES WHERE ID_RECURSO=" & resourceId & " AND ID=" & turnId
+        dbGetData(consulta)
+        
+        turnStart = rs(0)
+        turnDuration = rs(1)
+        dbReleaseData
+        if resourceId =100 then 
+          dbGetData("SELECT dbo.ESTADO_TURNO_RESERVA(100, " & sqlDate & ", " & turnStart & ", " & turnDuration & ")")
+          if uCase(rs(0)) = "DISPONIBLE" then
+            dbGetData("SELECT dbo.ESTADO_TURNO_RESERVA(200, " & sqlDate & ", " & turnStart & ", " & turnDuration & ")")
+          end if 
+        else
+          dbGetData("SELECT dbo.ESTADO_TURNO_RESERVA(" & resourceId & ", " & sqlDate & ", " & turnStart & ", " & turnDuration & ")")
+        end if
+        dim status: status = rs(0)
+        dbReleaseData
+        if uCase(status) = "DISPONIBLE" then
+          
+          dbGetData("SELECT UNIDAD, EMAIL FROM VECINOS WHERE ID=" & usrId)
+          dim usrUnit: usrUnit = rs("UNIDAD")
+          dim usrEmail: usrEmail = rs("EMAIL")
+          dbReleaseData
+          dbGetData("SELECT dbo.NOMBRE_TURNO(" & turnStart & ", " & turnDuration & ")")
+          dim turnName: turnName = rs(0)
+          dbReleaseData
+          dim message: message = "<h2>Solicitud de reserva</h2><h3>Su solicitud de reserva fue enviada con exito. El equipo de Tipas se comunicará para informale de su reserva. Puede ver las condiciones por cualquier inconveniente: <a href=" & dQuotes("http://vecinosdetipas.com.ar/contenidos/Reglamento.pdf") & ">Reglamento</a> </h3>"&_
+            "<table border=1 cellpadding=5>" & _
+            "<tr><td>Unidad/Lote:</td><td>" & usrUnit & "</td></tr>" & _
+            "<tr><td>Familia:</td><td>" & usrName & "</td></tr>" & _
+            "<tr><td>Fecha del evento:</td><td>" & bookingDate & "</td></tr>" & _
+            "<tr><td>Espacio:</td><td>" & uCase(resourceName) & "</td></tr>" & _
+            "<tr><td>Turno:</td><td>" & turnName & "</td></tr>" & _
+            "</table>" & _
+            "<h3>La Administración se pondrá en contacto para confirmar la reserva.</h3>"
+          sendMail "Reservas", "reservas@vecinosdetipas.com.ar","Familia: " &usrName& " - Solicitud de reserva", message, "Familia " & usrName, usrEmail
+          logActivity "Solicitud de reserva realizada " & resourceName, "Enviada"
+          
+        else
+          JSONAddOpFailed
+          JSONAddMessage "El turno indicado no se encuentra disponible."
+          logActivity "Reserva realizada " & resourceName, "Denegada, turno no disponible."
+        end if
+      else
+        JSONAddOpFailed
+        if  resourceId =100 then
+          JSONAddMessage "Las reservas del " & resourceName & " deben solicitarse con una anticipación minima de 10 días y dentro de los siguientes 60 dias."
+        else
+          JSONAddMessage "Las reservas del " & resourceName & " deben solicitarse con una anticipación minima de 10 dias y dentro de los siguientes 60 días."
+        end if 
+        logActivity "Reserva no realizada " & resourceName, "Denegada, anticipación excesiva."
+      end if
+    else
+      JSONAddOpFailed
+      JSONAddMessage "Ya se ha reservado esa fecha."
+    end if
+  
+  JSONSend
+end function
+
+function jBookingStartOptions(resourceId,bookingDate)
+  if isNull(resourceId) then
+    JSONAddStr "bookingTurnOptions", "[]"
+  else
+    dim dia
+    if isnull(bookingDate) then 
+      dia = 1
+    else
+      dia = Weekday(bookingDate)
+    end if
+    dim b: b = dbConnect
+
+    dbGetData("SELECT ID, NOMBRE FROM RESERVAS_TURNOS_ESPECIALES where ID_RECURSO="& resourceId & " AND dias like '%"&dia&"%' ORDER BY ID")
+    
+    JSONAddArray "bookingStartOptions", rs.getRows, array("id", "name")
+    dbReleaseData
+    if b then dbDisconnect
+  end if
+  JSONSend
+end function
+%>

@@ -1,0 +1,8 @@
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\bin\Del Golf.dll
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\bin\Del Golf.pdb
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\bin\Del Golf.xml
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\obj\Debug\Del_Golf.Resources.resources
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\obj\Debug\Castores.vbproj.GenerateResource.Cache
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\obj\Debug\Del Golf.dll
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\obj\Debug\Del Golf.xml
+D:\Documents\Visual Studio 2012\Projects\Castores\Del Golf\obj\Debug\Del Golf.pdb
