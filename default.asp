@@ -57,8 +57,27 @@ end function
 <head>
 <title>Las tipas - Sistema Brick</title>
 <meta http-equiv="Content-Type" content="text/html;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Script-Type" content="text/javascript">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="apple-touch-icon" sizes="57x57" href="contenidos/iconos/apple-icon-57x57.png">
+<link rel="apple-touch-icon" sizes="60x60" href="contenidos/iconos/apple-icon-60x60.png">
+<link rel="apple-touch-icon" sizes="72x72" href="contenidos/iconos/apple-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="76x76" href="contenidos/iconos/apple-icon-76x76.png">
+<link rel="apple-touch-icon" sizes="114x114" href="contenidos/iconos/apple-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="120x120" href="contenidos/iconos/apple-icon-120x120.png">
+<link rel="apple-touch-icon" sizes="144x144" href="contenidos/iconos/apple-icon-144x144.png">
+<link rel="apple-touch-icon" sizes="152x152" href="contenidos/iconos/apple-icon-152x152.png">
+<link rel="apple-touch-icon"  sizes="180x180" href="contenidos/iconos/apple-icon-180x180.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="contenidos/iconos/android-icon-192x192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="contenidos/iconos/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="contenidos/iconos/favicon-96x96.png">
+<link rel="icon" type="image/png" sizes="16x16" href="contenidos/iconos/favicon-16x16.png">
+<link rel="manifest" href="contenidos/iconos/manifest.json">
+<link rel="contents" href="contenidos/iconos/ios/AppIcon.appiconset/Contents.json">
+<meta name="msapplication-TileColor" content="#ffffff">
+<meta name="msapplication-TileImage" content="contenidos/iconos/ms-icon-144x144.png">
+<meta name="theme-color" content="#ffffff">
 <%
 includeStyleSheet("front-end/forms/forms.css")
 includeStyleSheet("front-end/forms/formsDialogs.css")
@@ -79,6 +98,8 @@ includeSript("front-end/timeLine.js")
 includeSript("front-end/misc.js")
 includeSript("front-end/forms/datePicker.js")
 includeSript("front-end/forms/utils.js")
+includeStyleSheet("front-end/mediaQuery.css")
+includeStyleSheet("front-end/nav.css")
 
 
 %>

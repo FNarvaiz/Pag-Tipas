@@ -107,13 +107,19 @@ function renderBookingsListing
   if not getUsrData then exit function
   %>
   <table cellpadding="4" cellspacing="0" width="100%">
+    <tr>
+      <th align="center">FECHA</th>
+      <th align="center">RECURSO</th>
+      <th align="center">TURNO</th>
+      <th width="60">&nbsp;</th>
+    </tr>
     <%
     if dbGetData("SELECT ID, FECHA, ID_RECURSO, dbo.NOMBRE_RECURSO_RESERVA(ID_RECURSO) AS RECURSO, " & _
         "dbo.NOMBRE_TURNO(INICIO, DURACION) AS TURNO, OBSERVACIONES, " & _
         "CAST(CASE WHEN (id_recurso<100 AND DATEDIFF(MINUTE, GETDATE(), dbo.FECHA_INICIO_TURNO(FECHA, INICIO)) >= 0) OR ( DATEDIFF(D, GETDATE(),FECHA) >30) THEN 1 ELSE 0 END AS BIT) AS CANCELABLE " & _
         "FROM RESERVAS WHERE ID_VECINO = " & usrId & " AND FECHA >= (SELECT TOP 1 FECHA FROM HOY) ORDER BY FECHA, RECURSO, INICIO DESC") then
       dim rowClass
-      dim oddRow: oddRow = true
+      dim oddRow: oddRow = false
       dim cancelBtnVisibility
       do while not rs.EOF
         if rs("CANCELABLE") then
@@ -125,14 +131,11 @@ function renderBookingsListing
         %>
         <tr class="<%= rowClass %>">
           <td width="75" align="center"><%= rs("FECHA") %></td>
-          <td width="100" align="center"><%= rs("TURNO") %></td>
-          <td align="left"><%= rs("RECURSO") %>
-            <% if rs("ID_RECURSO") >99 and len(rs("OBSERVACIONES")) > 0 then %>
-              <br><span style="font-size: 12px"><%= rs("OBSERVACIONES") %></span>
-            <% end if %>
-              <div class="cancelBookingsBtn anchor" style="visibility: <%= cancelBtnVisibility %>" 
-                onclick="bookingsCancel(<%= rs("ID") %>,<%= rs("ID_RECURSO") %>)">Cancelar</div>
-            
+          <td width="150" align="center"><%= rs("RECURSO") %></td>
+          <td width="140" align="center"><%= rs("TURNO") %></td>
+          <td>
+            <div class="bookingsButtons anchor" style="visibility: <%= cancelBtnVisibility %>" 
+              onclick="bookingsCancel(<%= rs("ID") %>,<%= rs("ID_RECURSO") %>)">Cancelar</div>
           </td>
         </tr>
         <%
@@ -141,7 +144,7 @@ function renderBookingsListing
       loop
     else
       %>
-      <tr><td colspan="4" align="left" height="25">(No has efectuado ninguna reserva.)</td></tr>
+      <tr><td colspan="4" align="left" height="25">(No hay ninguna reserva a utilizar.)</td></tr>
       <%
     end if
     dbReleaseData
@@ -151,7 +154,7 @@ function renderBookingsListing
 end function
 
 function renderBookingsStatus(resourceId)
-  if  resourceId=HouseBookingResourceId then
+  if  resourceId=HouseBookingResourceId or resourceId=QuinchoBookingResourceId then
     renderClubHouseBookingsStatus(resourceId)
   else
     renderTennisBookingsStatus(resourceId)
@@ -160,25 +163,6 @@ end function
 
 function renderTennisBookingsStatus(resourceId)
   if not getUsrData then exit function
-  %>
-  <table cellpadding="0" cellspacing="0">
-    <thead>
-    <tr>
-      <td width="52">&nbsp;</td>
-      <%
-      dbGetData("SELECT * FROM dbo.LISTA_FECHAS()")
-      do while not rs.EOF
-        %>
-        <th width="52"><%= weekdayname(weekday(rs("FECHA"))) %>&nbsp;<%= zeroPad(day(rs("FECHA")), 2) %>/<%= zeroPad(month(rs("FECHA")), 2) %></td>
-        <%
-        rs.moveNext
-      loop
-      dbReleaseData
-      %>
-    </tr>
-    </thead>
-    <tbody id="bookingRows">
-    <%
     dbGetData("SELECT E.FECHA, dbo.HOUR_TO_STR(dbo.MINUTOS_A_HORA(E.INICIO)) AS TURNO, E.INICIO, T.DURACION, E.ID_VECINO, E.ID_VECINO_2, E.ESTADO, " & _
       "CAST(CASE WHEN dbo.FECHA_FIN_TURNO(E.FECHA, E.INICIO, T.DURACION) < GETDATE() THEN 1 ELSE 0 END AS BIT) AS FINALIZADO, " & _
       "CAST(CASE WHEN GETDATE() < dbo.FECHA_INICIO_TURNO(FECHA, INICIO) AND UPPER(E.ESTADO)='DISPONIBLE' THEN 1 ELSE 0 END AS BIT) AS RESERVABLE, " & _
@@ -191,130 +175,196 @@ function renderTennisBookingsStatus(resourceId)
       "FROM dbo.ESTADOS_RESERVAS(" & resourceId & ") E " & _
       "JOIN RESERVAS_TIPOS T ON T.ID_RECURSO = " & resourceId & " AND T.ID>1 " & _
       "GROUP BY E.INICIO, E.FECHA, T.ID, T.DURACION, T.NOMBRE, E.ID_VECINO, E.ID_VECINO_2, E.ESTADO, E.DURACION, T.REQUIERE_VECINO_2, E.ID_TIPO " & _
-      "ORDER BY E.INICIO, E.FECHA, T.ID")
+      "ORDER BY  E.FECHA,E.INICIO, T.ID")
     dim rowClass
+    dim dateClass: dateClass="date"
     dim oddRow: oddRow = false
     dim colTurn: colTurn = -1
+    dim fecha: fecha = -1
+    dim turnAnterior: turnAnterior = -2
     dim d: d = dateSerial(2000, 1, 1)
     dim emptyCell: emptyCell = true
     do while not rs.EOF
+      if fecha<> rs("FECHA") then
+        if fecha<> -1 then 
+          %></section><%
+          dateClass="date secondDate"
+        end if
+        %><section id="bookingRows" class="<%= dateClass%>"><h4><%= weekdayname(weekday(rs("FECHA"))) %>&nbsp;<%= zeroPad(day(rs("FECHA")), 2) %>/<%= zeroPad(month(rs("FECHA")), 2) %></h4><%
+        fecha = rs("FECHA")
+        d = rs("FECHA")
+        colTurn = -1
+      end if 
       if colTurn <> rs("INICIO") then 
-        if oddRow then rowClass = "oddRow" else rowClass = ""
+        if oddRow then rowClass = "fila" else rowClass = "fila2"
         oddRow = not oddRow
-        %><tr class="<%= rowClass %>"><%
+        if colTurn <> -1 then 
+          %> </div> <% 
+        end if
+        %><div class="<%= rowClass %>"><%
         colTurn = rs("INICIO")
-        %><td width="58" class="bookingStatusTurn"><%= rs("TURNO") %></td><%
+        %><h5 class="bookingStatusTurn"><%= rs("TURNO") %></h5><%
       end if
       if rs("FINALIZADO") then
         if d <> rs("FECHA") then
           d = rs("FECHA")
-          %><td width="190"><%
         end if
       else
         if rs("RESERVABLE") then
-          if d <> rs("FECHA") then
-            d = rs("FECHA")
-            %><td width="190" class="bookingsButtons turnAvailable" align="center"><%
-          end if
-          if uCase(rs("ESTADO_TURNO")) = "DISPONIBLE" and rs("VALIDO") then
-            %>
+          if resourceId < 26  or not(( Weekday(d,1) < 6 and rs("INICIO") = 1320 ) or (Weekday(d,1) >5 and rs("INICIO") = 480 )) then 
+            if d <> rs("FECHA") then
+              d = rs("FECHA")
+              %><td width="190" class="bookingsButtons turnAvailable" align="center"><%
+            end if
+            if uCase(rs("ESTADO_TURNO")) = "DISPONIBLE" and rs("VALIDO") then
+              %>
               <span class="bookingsTypeButton anchor" title="Reservar <%= rs("TIPO") %>"
                 onclick="bookingsTake(this, <%= resourceId %>, '<%= day(d) %>/<%= month(d) %>/<%= year(d) %>', <%= rs("INICIO") %>, <%= rs("ID_TIPO_RESERVA_DISPONIBLE") %>, <%= abs(cInt(rs("REQUIERE_VECINO_2"))) %>)"><%= rs("ABR") %></span>
               <%
-            emptyCell = false
-          end if
+              emptyCell = false
+            end if
+          else
+            d = rs("FECHA")
+            %><div title="Bloqueado" class="bookingsButtons turnNotAvailable" align="center">No disponible</div><%
+          end if 
         elseif uCase(rs("ESTADO")) = "VACANTE" then
           if d <> rs("FECHA") then
             d = rs("FECHA")
-            %><td width="190" title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotUsed" align="center"><%
+            %><div  title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotUsed" ></div><%
           end if
         elseif rs("ID_VECINO") = usrId then
-          if d <> rs("FECHA") then
-            d = rs("FECHA")
-            if len(rs("UNIDAD_EXTRA")) > 0 then
-              %><td width="190" class="bookingsButtons turnOwnReservation" align="center"><%= rs("TIPO_RESERVA_HECHA") %> con lote <%= rs("UNIDAD_EXTRA") %><%
+          if turnAnterior <> rs("INICIO") then
+            if len(rs("UNIDAD_EXTRA")) > 0  then
+              %><div class="bookingsButtons turnOwnReservation" ><%= rs("TIPO_RESERVA_HECHA") %> con lote <%= rs("UNIDAD_EXTRA") %></div><%
             else
-              %><td width="190" class="bookingsButtons turnOwnReservation" align="center"><%= rs("TIPO_RESERVA_HECHA") %> (reserva propia)<%
+              %><div  class="bookingsButtons turnOwnReservation" ><%= rs("TIPO_RESERVA_HECHA") %> (reserva propia)</div><%
             end if
-          end if
-        elseif rs("ID_VECINO_2") = usrId then
-          if d <> rs("FECHA") then
             d = rs("FECHA")
-            %><td width="190" class="bookingsButtons turnOwnReservation" align="center"><%= rs("TIPO_RESERVA_HECHA") %> con lote <%= rs("UNIDAD_PRIMARIA") %><%
+          end if 
+        elseif rs("ID_VECINO_2") = usrId then
+          if turnAnterior <> rs("INICIO") then
+            %><div class="bookingsButtons turnOwnReservation"><%= rs("TIPO_RESERVA_HECHA") %> con lote <%= rs("UNIDAD_PRIMARIA") %></div><%
           end if
         else
-          if d <> rs("FECHA") then
-            d = rs("FECHA")
+           if turnAnterior <> rs("INICIO") then
             if len(rs("UNIDAD_EXTRA")) > 0 then
-              %><td width="190" title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotAvailable" align="center"><%= rs("TIPO_RESERVA_HECHA") %>: <%= rs("UNIDAD") %> y <%= rs("UNIDAD_EXTRA") %><%
+              %><div title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotAvailable"><%= rs("TIPO_RESERVA_HECHA") %>: <%= rs("UNIDAD") %> y <%= rs("UNIDAD_EXTRA") %></div><%
             else
-              %><td width="190" title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotAvailable" align="center"><%= rs("TIPO_RESERVA_HECHA") %>: <%= rs("UNIDAD") %><%
+              %><div title="<%= rs("ESTADO") %>" class="bookingsButtons turnNotAvailable"><%= rs("TIPO_RESERVA_HECHA") %>: <%= rs("UNIDAD") %></div><%
             end if
           end if
         end if
       end if
+      turnAnterior= colTurn
       rs.moveNext
-      if rs.EOF then
-        if emptyCell then
-          %>&nbsp;<%
-        end if
-        %></td></tr><%
-      else
-        if d <> rs("FECHA") then
-          if emptyCell then
-            %>&nbsp;<%
-          end if
-          emptyCell = true
-          %></td><%
-        end if
-        if colTurn <> rs("INICIO") then 
-          %></tr><%
-        end if
-      end if
     loop
+    %></div></section><%
     dbReleaseData
-    %>
-    </tbody>
-  </table>
-  <%
+    
 end function
 
 
 function renderClubHouseBookingsStatus(resourceId)
   if not getUsrData then exit function
   %>
-  <table cellpadding="4" cellspacing="0" width="100%">
-    <tr>
-      <th width="75" align="center">FECHA</th>
-      <th width="135" align="center">TURNO</th>
-      <th width="210" align="center">&nbsp;</th>
-    </tr>
+  <section class='headerTable'>
+      <h4>FECHA</h4>
+      <h4>TURNO</h4>
+      
+  </section>
     <%
-    if dbGetData("SELECT FECHA, dbo.NOMBRE_TURNO(INICIO, DURACION) AS TURNO " & _
-        "FROM dbo.ESTADOS_RESERVAS(" & resourceId & ") ORDER BY INICIO, FECHA") then
-      dim rowClass
+    dim placeId: placeId=1
+    if resourceId =  HouseBookingResourceId then
+      placeId = 0
+    end if
+    if dbGetData("SELECT F.FECHA, T.INICIO, T.DURACION, dbo.NOMBRE_TURNO(INICIO, DURACION) AS TURNO, T.ID,T.DIAS,T.IDreal as IDTURNO, " & _
+       " dbo.ID_VECINO_TURNO_RESERVA(" & resourceId & ", F.FECHA, T.INICIO) as vecinoID, " & _
+        "dbo.ESTADO_TURNO_RESERVA(" & resourceId & ", F.FECHA, T.INICIO, T.DURACION)as ESTADO " & _
+      "FROM dbo.LISTA_FECHAS_HOME() AS F " & _
+      "CROSS JOIN dbo.RESERVAS_TURNOS(" & resourceId & ") T order by F.Fecha ASC, ESTADO DESC") then
+     dim disponible: disponible = true
+      dim fecha: fecha = -1
+      dim d: d = dateSerial(2000, 1, 1)
+      dim contador: contador=0
+      dim rowClass: rowClass ="PF"
       dim oddRow: oddRow = false
+      dim classCancha : classCancha = ""
+      if(resourceId=29) then 
+        classCancha="buttonCancha"
+      end if
       do while not rs.EOF
-        if oddRow then rowClass = "oddRow" else rowClass = ""
-        oddRow = not oddRow
-        %>
-        <tr class="<%= rowClass %>">
-          <td width="75" align="center"><%= rs("FECHA") %></td>
-          <td width="135" align="center"><%= rs("TURNO") %></td>
-          <td width="210" align="center">&nbsp;</td>
-        </tr>
-        <%
+        if d <> rs("FECHA") and disponible and rowClass <>"PF" then  
+          %>  </div>   <% 
+          contador=contador+1 
+        end if
+        if not (contador>1 and resourceId=29) then
+          if (rs("ESTADO") ="No disponible") then 
+
+            if(resourceId=29) then 
+                rowClass="date secondDate"
+            else
+              if oddRow then 
+                rowClass = "fila2" 
+              else 
+                rowClass = "fila" 
+              end if
+              rowClass = rowClass & " noDisponible"  
+              
+            end if 
+            if d <> rs("FECHA") OR resourceId=29 then 
+              disponible=false
+              d=rs("FECHA")
+              oddRow = not oddRow
+              %>
+              <div class="<%= rowClass %>">
+                <div class="rowText left"><%= day(d) %>/<%= month(d) %></div>
+                <div class="rowText">No disponible</div>
+              </div>
+              
+              <%
+            end if
+          elseif d <> rs("FECHA") then
+            if ( InStr(rs("DIAS"),Weekday(rs("FECHA"),1))<>0) then
+              if(resourceId=29) then 
+                rowClass="date secondDate"
+              else
+                if oddRow then 
+                  rowClass = "fila2" 
+                else 
+                  rowClass = "fila"
+                end if 
+                oddRow = not oddRow
+              end if 
+              d=rs("FECHA")
+              disponible=true
+              %>
+              <div class="<%= rowClass %>">
+              <div class="rowText left" title="<%= weekdayname(weekday(rs("FECHA"))) %>" ><%= day(d) %>/<%= month(d) %></div>
+              <span class="bookingsTypeButton ajusteText <%= classCancha %>" title="Reservar <%= rs("TURNO") %>"
+                onclick="bookingsSendRequest2( '<%= day(d) %>/<%= month(d) %>/<%= year(d) %>',<%= placeId %>, <%= rs("IDTURNO") %>)"> <%= rs("TURNO")%></span>
+              <%
+            end if
+          elseif disponible then
+            if ( InStr(rs("DIAS"),Weekday(rs("FECHA"),1))<>0) then
+              %>
+              <span class="bookingsTypeButton ajusteText <%= classCancha %>" title="Reservar <%= rs("TURNO") %>"
+                onclick="bookingsSendRequest2( '<%= day(d) %>/<%= month(d) %>/<%= year(d) %>',<%= placeId %>, <%= rs("IDTURNO") %>)"> <%= rs("TURNO")%></span>
+             
+              <%
+            end if
+           
+          end if
+        end if
         rs.moveNext
       loop
+      if disponible then  %> </div> <% end if
     else
       %>
-      <tr><td colspan="3" width="390" align="center">(No se han realizado reservas)</td></tr>
+      <div>(No se han realizado reservas)</div>
       <%
     end if
     dbReleaseData
-    %>
-  </table>
-  <%
+   
 end function
 
 function bookingCancel(bookingId)

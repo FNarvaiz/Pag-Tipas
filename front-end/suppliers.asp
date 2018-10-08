@@ -10,7 +10,7 @@ function renderSuppliers(categoryId)
     <p>Aquí podrás consultar listados de los proveedores que colaboran con nuestro barrio.</p>
     <p>Para cada uno de ellos podrás expresar tu valoración personal y consultar cómo son valorados dentro del barrio.</p>
     <p>En caso de querer incluir un proveedor envianos un e-mail a 
-      <a href="mailto:<Las tipas <info@vecinosdetipas.com.ar>">info@vecinosdetipas.com.ar</a></p> 
+      <a href="mailto:Las tipas <info@vecinosdetipas.com.ar>">info@vecinosdetipas.com.ar</a></p> 
   </div>
   <div id="suppliersCategories">
     RUBRO: 

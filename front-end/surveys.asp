@@ -54,7 +54,7 @@ function renderSurveyItem(itemNumber)
       <div class="voteResultBg"><img src="front-end/resource/votos_bg.png"></div>
       <div class="voteResultfg">
         <img src="front-end/resource/votos_fg.png"
-          style="position: absolute; clip:rect(0px,<%= cInt(round(64 * cDbl(rs("VALORACION")) / 100))  %>px,10px,0px)">
+          style=" clip:rect(0px,<%= cInt(round(64 * cDbl(rs("VALORACION")) / 100))  %>px,10px,0px)">
       </div>
       <div class="voteQty">
         <%= rs("NOMBRE_VALORACION") %><br>Votos: <%= rs("CANTIDAD_VALORACIONES") %>
