@@ -258,58 +258,24 @@ function renderAbout
   <div id="aboutResponsive">
     <section id="tabla">
       <article class="artAbout">
-        <img src="contenidos/about/iconos/2.png"/>
-        <title>Comisión Arquitectura</title>
-        <p>Paola Baglietto, Paula Salinas, Guadalupe Roberi</p>
-        <p>arquitecturaloslagos@gmail.com</p>
-      </article>
-      <article class="artAbout">
-        <img src="contenidos/about/iconos/12.png"/>
-        <title>Comisión Laguna</title>
-        <p>Matías Bonta, Héctor Filice</p>
-        <p>lagunaloslagos@gmail.com</p>
-      </article>
-      <article class="artAbout">
-        <img src="contenidos/about/iconos/1.png"/>
-        <title>Comisión Seguridad</title>
-        <p>Marcelo Torassa, Gerardo Missan, Martin Guinart, Fernando Mauro, Alberto Monte</p>
-        <p>segloslagos@gmail.com</p>
-      </article>
-      <article class="artAbout">
-        <img src="contenidos/about/iconos/5.png"/>
-        <title>Comisión Comunicación</title>
-        <p>Florencia De Bella, Diego Sanchez Cavalieri, Martín Isola, Gabriela Arjona, Michelle Faour (Cultura)</p>
-        <p>comunicacionloslagos@gmail.com</p>
-      </article>
-      <article class="artAbout">
         <img src="contenidos/about/iconos/4.png"/>
         <title>Comisión Deportes Y Recreación</title>
-        <p>Carlos Coronel, Edgardo Bravi, Juan Carlos Morales, Mariano Farina, Pedro Lares</p>
-         <p>deportesloslagos@gmail.com</p>
       </article>
       <article class="artAbout">
         <img src="contenidos/about/iconos/6.png"/>
-        <title>Comisión Auditoria Y Presupuesto</title>
-    <p>Florencia De Bella, Sebastian Schvartzman, Leonardo Seoane, Lucas Kichic, Anamá Ferreira</p>
-        <p>presupuestoloslagos@gmail.com</p>
+        <title>Comisión Presupuesto</title>
       </article>
       <article class="artAbout">
         <img src="contenidos/about/iconos/3.png"/>
         <title>Comsion Espacios Verdes</title>
-        <p>Javier Speziale, Aníbal Montes</p>
-        <p>espaciosverdesloslagos@gmail.com</p>
       </article>
       <article class="artAbout">
         <img src="contenidos/about/iconos/7.png"/>
-        <title>Comsion Tribunal de Disciplina</title>
-        <p>Titulares: Marcelo Torassa, Martín Guinart, Diego Sánchez Cavalieri. Suplentes: Federico Georgiatis, Gabriela Sebess.</p>
-        <p>tribunaldedisciplinaloslagos@gmail.com</p>
+        <title>Comsion Disciplina</title>
       </article>
       <article class="artAbout">
         <img src="contenidos/about/iconos/4.png"/>
-        <title>Comsion Club House y Deportes</title>
-        <p>Claudia Rueda, Daniel Ini, Soraya Uribe, Ramiro López</p>
-        <p>clubhouseloslagos@gmail.com</p>
+        <title>Comsion Seguridad</title>
       </article>
       
         
@@ -317,7 +283,7 @@ function renderAbout
   
     
   <div id="infoResponsive">
-  Intendente : Adrian Garcia . <br />Intendentes  Auxiliares : <br /> Seguridad: Carla Gonzales, <br /> Obras:Luciano Padin, Gustavo Piva. General: Horacio Najle.    
+  Intendente : Ricardo Merlo. <br /> Auxiliar : Oscar Perez<br />Auxiliar : Carolina Talavera 
     
   </div>  
   
